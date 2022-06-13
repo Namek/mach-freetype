@@ -8,18 +8,18 @@ const hb_include_path = hb_root ++ "/src";
 
 const utils_pkg = std.build.Pkg{
     .name = "utils",
-    .source = .{ .path = thisDir() ++ "/src/utils.zig" },
+    .path = .{ .path = thisDir() ++ "/src/utils.zig" },
 };
 
 pub const pkg = std.build.Pkg{
     .name = "freetype",
-    .source = .{ .path = thisDir() ++ "/src/freetype/main.zig" },
+    .path = .{ .path = thisDir() ++ "/src/freetype/main.zig" },
     .dependencies = &.{utils_pkg},
 };
 
 pub const harfbuzz_pkg = std.build.Pkg{
     .name = "harfbuzz",
-    .source = .{ .path = thisDir() ++ "/src/harfbuzz/main.zig" },
+    .path = .{ .path = thisDir() ++ "/src/harfbuzz/main.zig" },
     .dependencies = &.{utils_pkg},
 };
 
@@ -92,13 +92,13 @@ pub fn build(b: *std.build.Builder) !void {
 pub fn link(b: *Builder, step: *std.build.LibExeObjStep, options: Options) void {
     const ft_lib = buildFreetype(b, step, options.freetype);
     step.linkLibrary(ft_lib);
-    step.addIncludePath(ft_include_path);
+    step.addIncludeDir(ft_include_path);
 
     if (options.harfbuzz) |hb_options| {
         const hb_lib = buildHarfbuzz(b, step, hb_options);
         hb_lib.linkLibrary(ft_lib);
         step.linkLibrary(hb_lib);
-        step.addIncludePath(hb_include_path);
+        step.addIncludeDir(hb_include_path);
     }
 }
 
@@ -112,9 +112,9 @@ pub fn buildFreetype(b: *Builder, step: *std.build.LibExeObjStep, options: Freet
     lib.setBuildMode(step.build_mode);
     lib.setTarget(step.target);
     lib.linkLibC();
-    lib.addIncludePath(ft_include_path);
+    lib.addIncludeDir(ft_include_path);
     if (options.ft_config_path) |path|
-        lib.addIncludePath(path);
+        lib.addIncludeDir(path);
 
     const target = (std.zig.system.NativeTargetInfo.detect(b.allocator, step.target) catch unreachable).target;
 
@@ -146,7 +146,7 @@ pub fn buildHarfbuzz(b: *Builder, step: *std.build.LibExeObjStep, options: Harfb
     lib.setBuildMode(step.build_mode);
     lib.setTarget(step.target);
     lib.linkLibCpp();
-    lib.addIncludePath(hb_include_path);
+    lib.addIncludeDir(hb_include_path);
     lib.addCSourceFiles(harfbuzz_base_sources, &.{});
     lib.install();
     return lib;
@@ -160,7 +160,7 @@ fn ensureDependencySubmodule(allocator: std.mem.Allocator, path: []const u8) !vo
     if (std.process.getEnvVarOwned(allocator, "NO_ENSURE_SUBMODULES")) |no_ensure_submodules| {
         if (std.mem.eql(u8, no_ensure_submodules, "true")) return;
     } else |_| {}
-    var child = std.ChildProcess.init(&.{ "git", "submodule", "update", "--init", path }, allocator);
+    var child = try std.ChildProcess.init(&.{ "git", "submodule", "update", "--init", path }, allocator);
     child.cwd = thisDir();
     child.stderr = std.io.getStdErr();
     child.stdout = std.io.getStdOut();
